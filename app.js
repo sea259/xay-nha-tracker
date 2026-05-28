@@ -1110,16 +1110,43 @@ async function loadFinance() {
     const totalFunded = totalDisbursed + totalGoldReceived;
     const balance = totalFunded - totalSpent;
 
-    // Tính dư nợ + lãi/tháng từng đợt giải ngân
+    // Tính dư nợ + lãi lũy kế từng đợt giải ngân
+    const now = new Date();
     const disbDetail = disbursements.map((d, i) => {
-        const principalPaidForThis = loanPayments.filter(p => p.disbursementId === d.id).reduce((s, p) => s + (p.amount || 0), 0);
+        const paymentsForThis = loanPayments.filter(p => p.disbursementId === d.id).sort((a, b) => new Date(a.date) - new Date(b.date));
+        const principalPaidForThis = paymentsForThis.reduce((s, p) => s + (p.amount || 0), 0);
         const remaining = d.amount - principalPaidForThis;
         const rate = d.interestRate || 0;
         const monthlyInterest = remaining * rate / 100 / 12;
-        return { ...d, idx: i + 1, principalPaid: principalPaidForThis, remaining, rate, monthlyInterest };
+
+        // Tính lãi lũy kế: từ ngày giải ngân → hôm nay, trừ gốc đã trả theo thời điểm
+        let accruedInterest = 0;
+        const disbDate = new Date(d.date);
+        const events = [{ date: disbDate, balance: d.amount }];
+        let bal = d.amount;
+        for (const p of paymentsForThis) {
+            bal -= (p.amount || 0);
+            events.push({ date: new Date(p.date), balance: bal });
+        }
+        for (let e = 0; e < events.length; e++) {
+            const from = events[e].date;
+            const to = e + 1 < events.length ? events[e + 1].date : now;
+            const months = (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth()) + (to.getDate() - from.getDate()) / 30;
+            if (months > 0) {
+                accruedInterest += events[e].balance * rate / 100 / 12 * months;
+            }
+        }
+        const totalMonths = (now.getFullYear() - disbDate.getFullYear()) * 12 + (now.getMonth() - disbDate.getMonth());
+
+        return { ...d, idx: i + 1, principalPaid: principalPaidForThis, remaining, rate, monthlyInterest, accruedInterest: Math.round(accruedInterest), totalMonths };
     });
     const totalRemaining = disbDetail.reduce((s, d) => s + d.remaining, 0);
     const totalMonthlyInterest = disbDetail.reduce((s, d) => s + d.monthlyInterest, 0);
+    const totalAccruedInterest = disbDetail.reduce((s, d) => s + d.accruedInterest, 0);
+    const interestBalance = totalAccruedInterest - totalInterestPaid; // >0 = còn thiếu lãi
+
+    // Bán vàng: tính tổng số cây
+    const totalGoldSold = goldSales.reduce((s, g) => s + (g.goldBars || 1), 0);
 
     const container = document.getElementById('page-finance');
     container.innerHTML = `
@@ -1152,6 +1179,11 @@ async function loadFinance() {
                 <div class="fin-card-value">${formatVNDShort(Math.round(totalMonthlyInterest))}</div>
                 <div class="fin-card-sub">Lãi đã trả: ${formatVNDShort(totalInterestPaid)}</div>
             </div>
+            <div class="fin-card ${interestBalance > 0 ? 'fin-negative' : 'fin-positive'}">
+                <div class="fin-card-title">Lãi lũy kế → nay</div>
+                <div class="fin-card-value">${formatVNDShort(totalAccruedInterest)}</div>
+                <div class="fin-card-sub">${interestBalance > 0 ? 'Còn thiếu: ' + formatVNDShort(interestBalance) : interestBalance < 0 ? 'Trả dư: ' + formatVNDShort(Math.abs(interestBalance)) : 'Đã trả đủ'}</div>
+            </div>
         </div>
 
         <div class="section-card">
@@ -1177,6 +1209,10 @@ async function loadFinance() {
                                 <span>Dư nợ: ${formatVNDShort(d.remaining)}</span>
                                 <span>Lãi/tháng: ${formatVNDShort(Math.round(d.monthlyInterest))}</span>
                             </div>
+                            <div class="disb-detail">
+                                <span>${d.totalMonths} tháng</span>
+                                <span>Lãi lũy kế: ${formatVNDShort(d.accruedInterest)}</span>
+                            </div>
                             ${d.notes ? `<div class="disb-notes">${d.notes}</div>` : ''}
                         </div>
                     `).join('')}
@@ -1185,27 +1221,30 @@ async function loadFinance() {
                     <span>Tổng lãi/tháng:</span>
                     <span class="text-red">${formatVND(Math.round(totalMonthlyInterest))}</span>
                 </div>
+                <div class="disb-total">
+                    <span>Lãi lũy kế → nay:</span>
+                    <span class="text-red">${formatVND(totalAccruedInterest)}</span>
+                </div>
             `}
         </div>
 
         <div class="section-card">
             <div class="section-header">
                 <h3>Bán vàng nhẫn 9999</h3>
-                <span class="section-total">${goldSales.length} / ${GOLD_BARS} cây</span>
+                <span class="section-total">${totalGoldSold} / ${GOLD_BARS} cây</span>
             </div>
             <div class="gold-indicator">
                 ${Array.from({length: GOLD_BARS}, (_, i) => `
-                    <div class="gold-bar ${i < goldSales.length ? 'sold' : ''}">
+                    <div class="gold-bar ${i < totalGoldSold ? 'sold' : ''}">
                         <span class="gold-icon">${SVG_ICONS.gold}</span>
-                        ${i < goldSales.length ? `<span class="gold-price">${formatVNDShort(goldSales[i].amount)}</span>` : ''}
                     </div>
                 `).join('')}
             </div>
             ${goldSales.length > 0 ? `
                 <div class="fin-list">
-                    ${goldSales.map((g, i) => `
+                    ${goldSales.map(g => `
                         <div class="fin-item" onclick="showEditFinanceModal('${g.id}')">
-                            <div>Cây ${i + 1} - ${formatDate(g.date)} ${g.notes ? '- ' + g.notes : ''}</div>
+                            <div>${g.goldBars || 1} cây - ${formatDate(g.date)} ${g.notes ? '- ' + g.notes : ''}</div>
                             <div class="fin-item-amount">${formatVND(g.amount)}</div>
                         </div>
                     `).join('')}
@@ -1282,6 +1321,10 @@ function showAddFinanceModal() {
                 <label>Trừ vào đợt giải ngân *</label>
                 <select id="fin-disb-target"></select>
             </div>
+            <div id="fin-gold-group" class="form-group hidden">
+                <label>Số cây *</label>
+                <input type="number" id="fin-gold-bars" min="1" max="20" value="1" inputmode="numeric">
+            </div>
             <div class="form-group">
                 <label>Ngày</label>
                 <input type="date" id="fin-date" value="${formatDateInput()}">
@@ -1304,11 +1347,11 @@ async function toggleFinanceFields() {
     const type = document.getElementById('fin-type').value;
     const rateGroup = document.getElementById('fin-rate-group');
     const disbGroup = document.getElementById('fin-disb-group');
+    const goldGroup = document.getElementById('fin-gold-group');
 
-    // Lãi suất chỉ hiện khi giải ngân
     rateGroup.classList.toggle('hidden', type !== 'loan_disbursement');
-    // Chọn đợt giải ngân chỉ hiện khi trả gốc
     disbGroup.classList.toggle('hidden', type !== 'loan_payment');
+    goldGroup.classList.toggle('hidden', type !== 'gold_sale');
 
     if (type === 'loan_payment') {
         await populateDisbursementSelect('fin-disb-target');
@@ -1368,6 +1411,10 @@ async function showEditFinanceModal(id) {
                 <label>Trừ vào đợt giải ngân</label>
                 <select id="fin-disb-target"></select>
             </div>
+            <div id="fin-gold-group" class="form-group ${entry.type === 'gold_sale' ? '' : 'hidden'}">
+                <label>Số cây</label>
+                <input type="number" id="fin-gold-bars" min="1" max="20" value="${entry.goldBars || 1}" inputmode="numeric">
+            </div>
             <div class="form-group">
                 <label>Ngày</label>
                 <input type="date" id="fin-date" value="${formatDateInput(entry.date)}">
@@ -1408,6 +1455,11 @@ async function saveFinance(existingId) {
         const disbId = document.getElementById('fin-disb-target').value;
         if (!disbId) { showToast('Vui lòng chọn đợt giải ngân', 'error'); return; }
         entry.disbursementId = disbId;
+    }
+
+    if (type === 'gold_sale') {
+        const bars = parseInt(document.getElementById('fin-gold-bars').value) || 1;
+        entry.goldBars = bars;
     }
 
     if (existingId) {

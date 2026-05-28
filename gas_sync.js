@@ -28,7 +28,7 @@ const HEADERS = {
   payments: ['id', 'contractType', 'installment', 'amount', 'description', 'status', 'paidAmount', 'paidDate', 'paymentMethod', 'notes'],
   expenses: ['id', 'name', 'amount', 'category', 'date', 'notes', 'createdAt'],
   progress: ['id', 'title', 'date', 'phase', 'description', 'photoCount', 'createdAt'],
-  finance:  ['id', 'type', 'amount', 'date', 'notes', 'interestRate', 'disbursementId', 'createdAt']
+  finance:  ['id', 'type', 'amount', 'date', 'notes', 'interestRate', 'disbursementId', 'goldBars', 'createdAt']
 };
 
 // ==================== PUSH (PWA -> Sheets) ====================
@@ -148,7 +148,7 @@ function readSheetData(ss, key) {
     for (var j = 0; j < headers.length; j++) {
       var val = data[i][j];
       // Convert numbers back
-      if (headers[j] === 'amount' || headers[j] === 'paidAmount' || headers[j] === 'installment' || headers[j] === 'photoCount') {
+      if (headers[j] === 'amount' || headers[j] === 'paidAmount' || headers[j] === 'installment' || headers[j] === 'photoCount' || headers[j] === 'goldBars') {
         obj[headers[j]] = typeof val === 'number' ? val : (parseInt(val, 10) || 0);
       } else if (headers[j] === 'interestRate') {
         obj[headers[j]] = typeof val === 'number' ? val : (parseFloat(val) || 0);
