@@ -1,0 +1,31 @@
+{
+    "name": "Xây Nhà Q12 - Theo Dõi Chi Phí",
+    "short_name": "Xây Nhà Q12",
+    "description": "Ứng dụng theo dõi chi phí xây nhà Quận 12, TPHCM",
+    "start_url": ".",
+    "display": "standalone",
+    "orientation": "portrait",
+    "background_color": "#1565C0",
+    "theme_color": "#1565C0",
+    "lang": "vi",
+    "icons": [
+        {
+            "src": "icons/icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}
