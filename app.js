@@ -1097,16 +1097,29 @@ async function loadFinance() {
     const disbursements = financeEntries.filter(f => f.type === 'loan_disbursement').sort((a, b) => new Date(a.date) - new Date(b.date));
     const goldSales = financeEntries.filter(f => f.type === 'gold_sale').sort((a, b) => new Date(a.date) - new Date(b.date));
     const loanPayments = financeEntries.filter(f => f.type === 'loan_payment').sort((a, b) => new Date(a.date) - new Date(b.date));
+    const interestPayments = financeEntries.filter(f => f.type === 'loan_interest').sort((a, b) => new Date(a.date) - new Date(b.date));
 
     const totalDisbursed = disbursements.reduce((s, f) => s + (f.amount || 0), 0);
     const totalGoldReceived = goldSales.reduce((s, f) => s + (f.amount || 0), 0);
-    const totalLoanPaid = loanPayments.reduce((s, f) => s + (f.amount || 0), 0);
+    const totalPrincipalPaid = loanPayments.reduce((s, f) => s + (f.amount || 0), 0);
+    const totalInterestPaid = interestPayments.reduce((s, f) => s + (f.amount || 0), 0);
+    const totalLoanPaid = totalPrincipalPaid + totalInterestPaid;
     const totalPaidContract = payments.reduce((s, p) => s + (p.paidAmount || 0), 0);
     const totalExpenses = expenses.reduce((s, e) => s + (e.amount || 0), 0);
     const totalSpent = totalPaidContract + totalExpenses;
     const totalFunded = totalDisbursed + totalGoldReceived;
     const balance = totalFunded - totalSpent;
-    const remainingLoan = totalDisbursed - totalLoanPaid;
+
+    // Tính dư nợ + lãi/tháng từng đợt giải ngân
+    const disbDetail = disbursements.map((d, i) => {
+        const principalPaidForThis = loanPayments.filter(p => p.disbursementId === d.id).reduce((s, p) => s + (p.amount || 0), 0);
+        const remaining = d.amount - principalPaidForThis;
+        const rate = d.interestRate || 0;
+        const monthlyInterest = remaining * rate / 100 / 12;
+        return { ...d, idx: i + 1, principalPaid: principalPaidForThis, remaining, rate, monthlyInterest };
+    });
+    const totalRemaining = disbDetail.reduce((s, d) => s + d.remaining, 0);
+    const totalMonthlyInterest = disbDetail.reduce((s, d) => s + d.monthlyInterest, 0);
 
     const container = document.getElementById('page-finance');
     container.innerHTML = `
@@ -1130,9 +1143,14 @@ async function loadFinance() {
                 <div class="fin-card-value">${formatVNDShort(Math.abs(balance))}</div>
             </div>
             <div class="fin-card">
-                <div class="fin-card-title">Còn nợ NH</div>
-                <div class="fin-card-value">${formatVNDShort(remainingLoan)}</div>
-                <div class="fin-card-sub">Đã trả: ${formatVNDShort(totalLoanPaid)}</div>
+                <div class="fin-card-title">Dư nợ gốc</div>
+                <div class="fin-card-value">${formatVNDShort(totalRemaining)}</div>
+                <div class="fin-card-sub">Gốc đã trả: ${formatVNDShort(totalPrincipalPaid)}</div>
+            </div>
+            <div class="fin-card">
+                <div class="fin-card-title">Lãi / tháng</div>
+                <div class="fin-card-value">${formatVNDShort(Math.round(totalMonthlyInterest))}</div>
+                <div class="fin-card-sub">Lãi đã trả: ${formatVNDShort(totalInterestPaid)}</div>
             </div>
         </div>
 
@@ -1148,12 +1166,24 @@ async function loadFinance() {
             </div>
             ${disbursements.length === 0 ? '<p class="empty-text">Chưa có giải ngân</p>' : `
                 <div class="fin-list">
-                    ${disbursements.map(d => `
-                        <div class="fin-item" onclick="showEditFinanceModal('${d.id}')">
-                            <div>${formatDate(d.date)} ${d.notes ? '- ' + d.notes : ''}</div>
-                            <div class="fin-item-amount">${formatVND(d.amount)}</div>
+                    ${disbDetail.map(d => `
+                        <div class="fin-item disb-item" onclick="showEditFinanceModal('${d.id}')">
+                            <div class="disb-header">
+                                <span class="disb-label">Đợt ${d.idx} - ${formatDate(d.date)}</span>
+                                <span class="fin-item-amount">${formatVND(d.amount)}</span>
+                            </div>
+                            <div class="disb-detail">
+                                <span>Lãi ${d.rate}%/năm</span>
+                                <span>Dư nợ: ${formatVNDShort(d.remaining)}</span>
+                                <span>Lãi/tháng: ${formatVNDShort(Math.round(d.monthlyInterest))}</span>
+                            </div>
+                            ${d.notes ? `<div class="disb-notes">${d.notes}</div>` : ''}
                         </div>
                     `).join('')}
+                </div>
+                <div class="disb-total">
+                    <span>Tổng lãi/tháng:</span>
+                    <span class="text-red">${formatVND(Math.round(totalMonthlyInterest))}</span>
                 </div>
             `}
         </div>
@@ -1185,12 +1215,32 @@ async function loadFinance() {
 
         <div class="section-card">
             <div class="section-header">
-                <h3>Trả nợ ngân hàng</h3>
-                <span class="section-total">Đã trả: ${formatVNDShort(totalLoanPaid)}</span>
+                <h3>Trả gốc ngân hàng</h3>
+                <span class="section-total">Đã trả: ${formatVNDShort(totalPrincipalPaid)}</span>
             </div>
-            ${loanPayments.length === 0 ? '<p class="empty-text">Chưa có khoản trả nợ</p>' : `
+            ${loanPayments.length === 0 ? '<p class="empty-text">Chưa trả gốc</p>' : `
                 <div class="fin-list">
-                    ${loanPayments.map(l => `
+                    ${loanPayments.map(l => {
+                        const disb = disbDetail.find(d => d.id === l.disbursementId);
+                        const disbLabel = disb ? `Đợt ${disb.idx}` : '';
+                        return `
+                        <div class="fin-item" onclick="showEditFinanceModal('${l.id}')">
+                            <div>${formatDate(l.date)} ${disbLabel ? '→ ' + disbLabel : ''} ${l.notes ? '- ' + l.notes : ''}</div>
+                            <div class="fin-item-amount text-red">-${formatVND(l.amount)}</div>
+                        </div>`;
+                    }).join('')}
+                </div>
+            `}
+        </div>
+
+        <div class="section-card">
+            <div class="section-header">
+                <h3>Trả lãi ngân hàng</h3>
+                <span class="section-total">Đã trả: ${formatVNDShort(totalInterestPaid)}</span>
+            </div>
+            ${interestPayments.length === 0 ? '<p class="empty-text">Chưa trả lãi</p>' : `
+                <div class="fin-list">
+                    ${interestPayments.map(l => `
                         <div class="fin-item" onclick="showEditFinanceModal('${l.id}')">
                             <div>${formatDate(l.date)} ${l.notes ? '- ' + l.notes : ''}</div>
                             <div class="fin-item-amount text-red">-${formatVND(l.amount)}</div>
@@ -1212,16 +1262,25 @@ function showAddFinanceModal() {
         <div class="modal-body">
             <div class="form-group">
                 <label>Loại giao dịch *</label>
-                <select id="fin-type">
+                <select id="fin-type" onchange="toggleFinanceFields()">
                     <option value="loan_disbursement">Giải ngân ngân hàng</option>
                     <option value="gold_sale">Bán vàng</option>
-                    <option value="loan_payment">Trả nợ ngân hàng</option>
+                    <option value="loan_payment">Trả gốc ngân hàng</option>
+                    <option value="loan_interest">Trả lãi ngân hàng</option>
                 </select>
             </div>
             <div class="form-group">
                 <label>Số tiền *</label>
                 <input type="text" id="fin-amount" placeholder="0" inputmode="numeric"
                     oninput="this.value = formatInputVND(this.value)">
+            </div>
+            <div id="fin-rate-group" class="form-group">
+                <label>Lãi suất (%/năm) *</label>
+                <input type="number" id="fin-rate" step="0.01" placeholder="VD: 6.5" inputmode="decimal">
+            </div>
+            <div id="fin-disb-group" class="form-group hidden">
+                <label>Trừ vào đợt giải ngân *</label>
+                <select id="fin-disb-target"></select>
             </div>
             <div class="form-group">
                 <label>Ngày</label>
@@ -1237,7 +1296,43 @@ function showAddFinanceModal() {
             <button class="btn btn-primary" onclick="saveFinance()">Lưu</button>
         </div>
     `;
+    toggleFinanceFields();
     showModal('modal-finance');
+}
+
+async function toggleFinanceFields() {
+    const type = document.getElementById('fin-type').value;
+    const rateGroup = document.getElementById('fin-rate-group');
+    const disbGroup = document.getElementById('fin-disb-group');
+
+    // Lãi suất chỉ hiện khi giải ngân
+    rateGroup.classList.toggle('hidden', type !== 'loan_disbursement');
+    // Chọn đợt giải ngân chỉ hiện khi trả gốc
+    disbGroup.classList.toggle('hidden', type !== 'loan_payment');
+
+    if (type === 'loan_payment') {
+        await populateDisbursementSelect('fin-disb-target');
+    }
+}
+
+async function populateDisbursementSelect(selectId, selectedDisbId) {
+    const financeEntries = await DB.getFinance();
+    const disbursements = financeEntries.filter(f => f.type === 'loan_disbursement').sort((a, b) => new Date(a.date) - new Date(b.date));
+    const allPayments = financeEntries.filter(f => f.type === 'loan_payment');
+
+    const sel = document.getElementById(selectId);
+    sel.innerHTML = '<option value="">-- Chọn đợt --</option>';
+    disbursements.forEach((d, i) => {
+        const paidForThis = allPayments.filter(p => p.disbursementId === d.id).reduce((s, p) => s + (p.amount || 0), 0);
+        const remaining = d.amount - paidForThis;
+        if (remaining > 0 || d.id === selectedDisbId) {
+            const opt = document.createElement('option');
+            opt.value = d.id;
+            opt.textContent = `Đợt ${i + 1} - ${formatVNDShort(d.amount)} (${d.interestRate || 0}%/năm) — Dư nợ: ${formatVNDShort(remaining)}`;
+            if (d.id === selectedDisbId) opt.selected = true;
+            sel.appendChild(opt);
+        }
+    });
 }
 
 async function showEditFinanceModal(id) {
@@ -1253,16 +1348,25 @@ async function showEditFinanceModal(id) {
         <div class="modal-body">
             <div class="form-group">
                 <label>Loại giao dịch</label>
-                <select id="fin-type">
+                <select id="fin-type" onchange="toggleFinanceFields()">
                     <option value="loan_disbursement" ${entry.type === 'loan_disbursement' ? 'selected' : ''}>Giải ngân ngân hàng</option>
                     <option value="gold_sale" ${entry.type === 'gold_sale' ? 'selected' : ''}>Bán vàng</option>
-                    <option value="loan_payment" ${entry.type === 'loan_payment' ? 'selected' : ''}>Trả nợ ngân hàng</option>
+                    <option value="loan_payment" ${entry.type === 'loan_payment' ? 'selected' : ''}>Trả gốc ngân hàng</option>
+                    <option value="loan_interest" ${entry.type === 'loan_interest' ? 'selected' : ''}>Trả lãi ngân hàng</option>
                 </select>
             </div>
             <div class="form-group">
                 <label>Số tiền</label>
                 <input type="text" id="fin-amount" value="${formatInputVND(String(entry.amount))}" inputmode="numeric"
                     oninput="this.value = formatInputVND(this.value)">
+            </div>
+            <div id="fin-rate-group" class="form-group ${entry.type === 'loan_disbursement' ? '' : 'hidden'}">
+                <label>Lãi suất (%/năm)</label>
+                <input type="number" id="fin-rate" step="0.01" value="${entry.interestRate || ''}" inputmode="decimal">
+            </div>
+            <div id="fin-disb-group" class="form-group ${entry.type === 'loan_payment' ? '' : 'hidden'}">
+                <label>Trừ vào đợt giải ngân</label>
+                <select id="fin-disb-target"></select>
             </div>
             <div class="form-group">
                 <label>Ngày</label>
@@ -1278,6 +1382,9 @@ async function showEditFinanceModal(id) {
             <button class="btn btn-primary" onclick="saveFinance('${id}')">Lưu</button>
         </div>
     `;
+    if (entry.type === 'loan_payment') {
+        await populateDisbursementSelect('fin-disb-target', entry.disbursementId);
+    }
     showModal('modal-finance');
 }
 
@@ -1290,6 +1397,19 @@ async function saveFinance(existingId) {
     if (!amount) { showToast('Vui lòng nhập số tiền', 'error'); return; }
 
     const entry = { type, amount, date, notes };
+
+    if (type === 'loan_disbursement') {
+        const rate = parseFloat(document.getElementById('fin-rate').value);
+        if (!rate || rate <= 0) { showToast('Vui lòng nhập lãi suất', 'error'); return; }
+        entry.interestRate = rate;
+    }
+
+    if (type === 'loan_payment') {
+        const disbId = document.getElementById('fin-disb-target').value;
+        if (!disbId) { showToast('Vui lòng chọn đợt giải ngân', 'error'); return; }
+        entry.disbursementId = disbId;
+    }
+
     if (existingId) {
         entry.id = existingId;
         const existing = await DB.get(DB.STORES.finance, existingId);

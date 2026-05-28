@@ -1,4 +1,4 @@
-const CACHE_NAME = 'xay-nha-tracker-v4';
+const CACHE_NAME = 'xay-nha-tracker-v5';
 const ASSETS = [
     './',
     './index.html',

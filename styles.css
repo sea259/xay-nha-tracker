@@ -831,6 +831,40 @@ body {
 
 .text-red { color: var(--red); }
 
+.disb-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+}
+.disb-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.disb-label {
+    font-weight: 600;
+}
+.disb-detail {
+    display: flex;
+    gap: 12px;
+    font-size: 0.75rem;
+    color: var(--gray-500);
+}
+.disb-notes {
+    font-size: 0.75rem;
+    color: var(--gray-400);
+    font-style: italic;
+}
+.disb-total {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0 4px;
+    border-top: 1px solid var(--gray-200);
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-top: 4px;
+}
+
 .empty-text {
     font-size: 0.8rem;
     color: var(--gray-500);
