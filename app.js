@@ -222,18 +222,22 @@ async function loadDashboard() {
     const totalPaid = payments.reduce((s, p) => s + (p.paidAmount || 0), 0);
     const totalExpenses = expenses.reduce((s, e) => s + (e.amount || 0), 0);
     const totalSpent = totalPaid + totalExpenses;
-    const remaining = TOTAL_BUDGET - totalPaid;
-    const paidPercent = TOTAL_BUDGET > 0 ? (totalPaid / TOTAL_BUDGET * 100) : 0;
 
-    // ABK progress
+    // Tính tổng HĐ thực tế từ DB (cho phép user sửa số tiền đợt)
     const abkPayments = payments.filter(p => p.contractType === 'ABK');
-    const abkPaid = abkPayments.reduce((s, p) => s + (p.paidAmount || 0), 0);
-    const abkPercent = ABK_CONTRACT.total > 0 ? (abkPaid / ABK_CONTRACT.total * 100) : 0;
-
-    // TM progress
     const tmPayments = payments.filter(p => p.contractType === 'TM');
+    const abkTotal = abkPayments.reduce((s, p) => s + (p.amount || 0), 0);
+    const tmTotal = tmPayments.reduce((s, p) => s + (p.amount || 0), 0);
+    const actualBudget = abkTotal + tmTotal;
+
+    const remaining = actualBudget - totalPaid;
+    const paidPercent = actualBudget > 0 ? (totalPaid / actualBudget * 100) : 0;
+
+    const abkPaid = abkPayments.reduce((s, p) => s + (p.paidAmount || 0), 0);
+    const abkPercent = abkTotal > 0 ? (abkPaid / abkTotal * 100) : 0;
+
     const tmPaid = tmPayments.reduce((s, p) => s + (p.paidAmount || 0), 0);
-    const tmPercent = TM_CONTRACT.total > 0 ? (tmPaid / TM_CONTRACT.total * 100) : 0;
+    const tmPercent = tmTotal > 0 ? (tmPaid / tmTotal * 100) : 0;
 
     // Next payment (sort by installment to avoid IndexedDB string key order bug)
     const nextABK = [...abkPayments].sort((a, b) => a.installment - b.installment).find(p => p.status === 'pending');
@@ -250,7 +254,7 @@ async function loadDashboard() {
     container.innerHTML = `
         <div class="dashboard-header">
             <h2>Xây Nhà Q12, TPHCM</h2>
-            <p class="subtitle">Tổng ngân sách: ${formatVND(TOTAL_BUDGET)}</p>
+            <p class="subtitle">Tổng ngân sách: ${formatVND(actualBudget)}</p>
         </div>
 
         <div class="progress-section">
@@ -262,7 +266,7 @@ async function loadDashboard() {
                 <div class="progress-bar-fill" style="width:${Math.min(paidPercent, 100)}%"></div>
             </div>
             <div class="progress-sub">
-                ${formatVNDShort(totalPaid)} / ${formatVNDShort(TOTAL_BUDGET)}
+                ${formatVNDShort(totalPaid)} / ${formatVNDShort(actualBudget)}
             </div>
         </div>
 
@@ -303,7 +307,7 @@ async function loadDashboard() {
                 <div class="progress-bar-track">
                     <div class="progress-bar-fill bg-blue" style="width:${Math.min(abkPercent, 100)}%"></div>
                 </div>
-                <span class="mini-pct">${abkPercent.toFixed(1)}% - ${formatVNDShort(abkPaid)} / ${formatVNDShort(ABK_CONTRACT.total)}</span>
+                <span class="mini-pct">${abkPercent.toFixed(1)}% - ${formatVNDShort(abkPaid)} / ${formatVNDShort(abkTotal)}</span>
             </div>
             ${nextABK ? `<div class="next-payment">
                 <span class="next-label">Đợt kế tiếp:</span>
@@ -318,7 +322,7 @@ async function loadDashboard() {
                 <div class="progress-bar-track">
                     <div class="progress-bar-fill bg-green" style="width:${Math.min(tmPercent, 100)}%"></div>
                 </div>
-                <span class="mini-pct">${tmPercent.toFixed(1)}% - ${formatVNDShort(tmPaid)} / ${formatVNDShort(TM_CONTRACT.total)}</span>
+                <span class="mini-pct">${tmPercent.toFixed(1)}% - ${formatVNDShort(tmPaid)} / ${formatVNDShort(tmTotal)}</span>
             </div>
             ${nextTM ? `<div class="next-payment">
                 <span class="next-label">Đợt kế tiếp:</span>
@@ -385,6 +389,8 @@ async function loadPayments() {
 
     const abkPaid = abk.reduce((s, p) => s + (p.paidAmount || 0), 0);
     const tmPaid = tm.reduce((s, p) => s + (p.paidAmount || 0), 0);
+    const abkTotal = abk.reduce((s, p) => s + (p.amount || 0), 0);
+    const tmTotal = tm.reduce((s, p) => s + (p.amount || 0), 0);
 
     const container = document.getElementById('page-payments');
     container.innerHTML = `
@@ -396,7 +402,7 @@ async function loadPayments() {
             <div class="contract-header" onclick="toggleContract('abk-list')">
                 <div>
                     <h3>ABK - Xây dựng</h3>
-                    <span class="contract-sub">${formatVNDShort(abkPaid)} / ${formatVNDShort(ABK_CONTRACT.total)} (${(abkPaid / ABK_CONTRACT.total * 100).toFixed(1)}%)</span>
+                    <span class="contract-sub">${formatVNDShort(abkPaid)} / ${formatVNDShort(abkTotal)} (${(abkTotal > 0 ? (abkPaid / abkTotal * 100) : 0).toFixed(1)}%)</span>
                 </div>
                 <span class="chevron">${SVG_ICONS.chevron}</span>
             </div>
@@ -409,7 +415,7 @@ async function loadPayments() {
             <div class="contract-header" onclick="toggleContract('tm-list')">
                 <div>
                     <h3>TM - Thang máy Fuji</h3>
-                    <span class="contract-sub">${formatVNDShort(tmPaid)} / ${formatVNDShort(TM_CONTRACT.total)} (${(tmPaid / TM_CONTRACT.total * 100).toFixed(1)}%)</span>
+                    <span class="contract-sub">${formatVNDShort(tmPaid)} / ${formatVNDShort(tmTotal)} (${(tmTotal > 0 ? (tmPaid / tmTotal * 100) : 0).toFixed(1)}%)</span>
                 </div>
                 <span class="chevron">${SVG_ICONS.chevron}</span>
             </div>
@@ -469,9 +475,11 @@ async function showPaymentModal(paymentId) {
                 <span class="detail-label">Hạng mục</span>
                 <span class="detail-value">${payment.description}</span>
             </div>
-            <div class="detail-row">
-                <span class="detail-label">Số tiền HĐ</span>
-                <span class="detail-value">${formatVND(payment.amount)}</span>
+            <div class="form-group">
+                <label>Số tiền HĐ</label>
+                <input type="text" id="pay-contract-amount" value="${formatInputVND(String(payment.amount))}"
+                    inputmode="numeric" onfocus="this.select()"
+                    oninput="this.value = formatInputVND(this.value)">
             </div>
 
             <div class="form-group">
@@ -526,7 +534,8 @@ async function showPaymentModal(paymentId) {
 
 async function savePayment(paymentId) {
     const status = document.getElementById('pay-status').value;
-    const updates = { status };
+    const newAmount = parseVNDInput(document.getElementById('pay-contract-amount').value);
+    const updates = { status, amount: newAmount };
 
     if (status === 'paid') {
         updates.paidAmount = parseVNDInput(document.getElementById('pay-amount').value);
