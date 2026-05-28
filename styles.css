@@ -445,6 +445,22 @@ body {
     border-radius: 0 0 var(--radius) var(--radius);
 }
 
+.add-installment-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    border-top: 1px dashed var(--gray-200);
+    color: var(--primary);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.add-installment-btn:active {
+    background: var(--gray-50);
+}
+
 .payment-left {
     flex: 1;
     min-width: 0;

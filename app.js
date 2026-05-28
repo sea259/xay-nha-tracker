@@ -408,6 +408,9 @@ async function loadPayments() {
             </div>
             <div id="abk-list" class="installment-list expanded">
                 ${abk.map(p => renderPaymentItem(p)).join('')}
+                <div class="add-installment-btn" onclick="showAddInstallment('ABK', ${abk.length})">
+                    <span>＋ Thêm đợt ${abk.length + 1}</span>
+                </div>
             </div>
         </div>
 
@@ -421,6 +424,9 @@ async function loadPayments() {
             </div>
             <div id="tm-list" class="installment-list expanded">
                 ${tm.map(p => renderPaymentItem(p)).join('')}
+                <div class="add-installment-btn" onclick="showAddInstallment('TM', ${tm.length})">
+                    <span>＋ Thêm đợt ${tm.length + 1}</span>
+                </div>
             </div>
         </div>
     `;
@@ -567,6 +573,69 @@ async function undoPayment(paymentId) {
     closeAllModals();
     await loadPayments();
     showToast('Đã hủy thanh toán');
+}
+
+function showAddInstallment(contractType, currentCount) {
+    const nextNum = currentCount + 1;
+    const label = contractType === 'ABK' ? 'ABK - Xây dựng' : 'TM - Thang máy';
+    const modal = document.getElementById('modal-payment');
+
+    modal.querySelector('.modal-content').innerHTML = `
+        <div class="modal-header">
+            <h3>${label} - Thêm đợt ${nextNum}</h3>
+            <button class="modal-close" onclick="closeAllModals()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Số tiền</label>
+                <input type="text" id="new-inst-amount" placeholder="VD: 50,000,000"
+                    inputmode="numeric" onfocus="this.select()"
+                    oninput="this.value = formatInputVND(this.value)">
+            </div>
+            <div class="form-group">
+                <label>Mô tả</label>
+                <input type="text" id="new-inst-desc" placeholder="VD: Bổ sung do điều chỉnh HĐ">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" onclick="saveNewInstallment('${contractType}', ${nextNum})">Thêm đợt</button>
+        </div>
+    `;
+
+    showModal('modal-payment');
+}
+
+async function saveNewInstallment(contractType, installmentNum) {
+    const amountStr = document.getElementById('new-inst-amount').value;
+    const desc = document.getElementById('new-inst-desc').value.trim();
+    const amount = parseVNDInput(amountStr);
+
+    if (!amount || amount <= 0) {
+        showToast('Vui lòng nhập số tiền');
+        return;
+    }
+    if (!desc) {
+        showToast('Vui lòng nhập mô tả');
+        return;
+    }
+
+    const prefix = contractType.toLowerCase();
+    await DB.put(DB.STORES.payments, {
+        id: `${prefix}_${installmentNum}`,
+        contractType,
+        installment: installmentNum,
+        amount,
+        description: desc,
+        status: 'pending',
+        paidAmount: 0,
+        paidDate: null,
+        paymentMethod: null,
+        notes: ''
+    });
+
+    closeAllModals();
+    await loadPayments();
+    showToast(`Đã thêm đợt ${installmentNum} cho ${contractType}`);
 }
 
 // ======================== EXPENSES ========================
