@@ -177,6 +177,7 @@ async function loadTab(tabName) {
         case 'expenses': await loadExpenses(); break;
         case 'progress': await loadProgress(); break;
         case 'finance': await loadFinance(); break;
+        case 'inspect': loadInspect(); break;
     }
 }
 
