@@ -1373,6 +1373,9 @@ body {
 .ins-tg-d{background:#E3F2FD;color:var(--primary)}
 .ins-tg-t{background:#E8F5E9;color:var(--green)}
 
+.ins-ref{font-size:.65rem;color:#1565C0;margin-top:3px;line-height:1.3;padding:2px 0 0}
+.ins-done .ins-ref{color:var(--gray-400)}
+
 .ins-note-btn{background:none;border:none;font-size:.68rem;color:var(--gray-400);cursor:pointer;padding:3px 0;margin-top:3px}
 .ins-note-btn:hover{color:var(--primary)}
 .ins-note-area{display:none;width:100%;margin-top:4px;padding:6px 8px;border:1px solid var(--gray-300);border-radius:6px;font-size:.8rem;font-family:inherit;resize:vertical;min-height:40px;color:var(--gray-800);outline:none}
