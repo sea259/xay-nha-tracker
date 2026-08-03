@@ -7,22 +7,22 @@ const ABK_CONTRACT = {
     fullName: 'Hợp đồng xây dựng ABK',
     total: 1_940_000_000,
     installments: [
-        { num: 1,  amount: 50_000_000,  desc: 'Sau khi ký HĐ (thiết kế hồ sơ)' },
-        { num: 2,  amount: 100_000_000, desc: 'Sau 5 ngày vận chuyển máy móc, VL về công trình' },
-        { num: 3,  amount: 194_000_000, desc: 'Đổ BT xong phần móng' },
-        { num: 4,  amount: 194_000_000, desc: 'Đổ BT sàn Lầu 1' },
-        { num: 5,  amount: 194_000_000, desc: 'Đổ BT sàn Lầu 2' },
-        { num: 6,  amount: 194_000_000, desc: 'Đổ BT sàn Lầu 3' },
-        { num: 7,  amount: 194_000_000, desc: 'Đổ BT sàn Lầu Thượng' },
-        { num: 8,  amount: 135_000_000, desc: 'Đổ BT sàn Mái' },
-        { num: 9,  amount: 105_000_000, desc: 'Xây tô tường mái + tháo coppa trệt + điện trệt' },
-        { num: 10, amount: 105_000_000, desc: 'Tháo coppa L1,L2 + điện L1,L2 + xây tô L1,L2' },
-        { num: 11, amount: 105_000_000, desc: 'Tháo coppa L3,LT + điện L3,LT + xây tô L3,LT' },
-        { num: 12, amount: 135_000_000, desc: 'Ống nước + chống thấm + kéo dây điện + ống đồng ML + trần thạch cao + sơn 50% + ốp lát 50%' },
-        { num: 13, amount: 135_000_000, desc: 'Ốp lát 100% + đá cầu thang + sơn 95% + cửa 70% + lan can 70%' },
-        { num: 14, amount: 50_000_000,  desc: 'TBVS + chiếu sáng + sơn 100% + tủ bếp + cửa 100% + vệ sinh bàn giao' },
-        { num: 15, amount: 25_000_000,  desc: 'Bảo hành 6 tháng' },
-        { num: 16, amount: 25_000_000,  desc: 'Bảo hành 12 tháng' },
+        { num: 1,  amount: 50_000_000,  desc: 'Sau khi ký HĐ (thiết kế hồ sơ)', estimatedDate: '2026-05-20' },
+        { num: 2,  amount: 100_000_000, desc: 'Sau 5 ngày vận chuyển máy móc, VL về công trình', estimatedDate: '2026-08-03' },
+        { num: 3,  amount: 194_000_000, desc: 'Đổ BT xong phần móng', estimatedDate: '2026-08-17' },
+        { num: 4,  amount: 194_000_000, desc: 'Đổ BT sàn Lầu 1', estimatedDate: '2026-08-27' },
+        { num: 5,  amount: 194_000_000, desc: 'Đổ BT sàn Lầu 2', estimatedDate: '2026-09-08' },
+        { num: 6,  amount: 194_000_000, desc: 'Đổ BT sàn Lầu 3', estimatedDate: '2026-09-20' },
+        { num: 7,  amount: 194_000_000, desc: 'Đổ BT sàn Lầu Thượng', estimatedDate: '2026-10-01' },
+        { num: 8,  amount: 135_000_000, desc: 'Đổ BT sàn Mái', estimatedDate: '2026-10-11' },
+        { num: 9,  amount: 105_000_000, desc: 'Xây tô tường mái + tháo coppa trệt + điện trệt', estimatedDate: '2026-10-26' },
+        { num: 10, amount: 105_000_000, desc: 'Tháo coppa L1,L2 + điện L1,L2 + xây tô L1,L2', estimatedDate: '2026-11-15' },
+        { num: 11, amount: 105_000_000, desc: 'Tháo coppa L3,LT + điện L3,LT + xây tô L3,LT', estimatedDate: '2026-11-15' },
+        { num: 12, amount: 135_000_000, desc: 'Ống nước + chống thấm + kéo dây điện + ống đồng ML + trần thạch cao + sơn 50% + ốp lát 50%', estimatedDate: '2026-12-15' },
+        { num: 13, amount: 135_000_000, desc: 'Ốp lát 100% + đá cầu thang + sơn 95% + cửa 70% + lan can 70%', estimatedDate: '2026-12-30' },
+        { num: 14, amount: 50_000_000,  desc: 'TBVS + chiếu sáng + sơn 100% + tủ bếp + cửa 100% + vệ sinh bàn giao', estimatedDate: '2027-01-06' },
+        { num: 15, amount: 25_000_000,  desc: 'Bảo hành 6 tháng', estimatedDate: '2027-07-06' },
+        { num: 16, amount: 25_000_000,  desc: 'Bảo hành 12 tháng', estimatedDate: '2028-01-06' },
     ]
 };
 
@@ -113,7 +113,10 @@ async function initApp() {
 
 async function seedPayments() {
     const existing = await DB.getPayments();
-    if (existing.length > 0) return;
+    if (existing.length > 0) {
+        await migrateEstimatedDates();
+        return;
+    }
 
     const ops = [];
     for (const inst of ABK_CONTRACT.installments) {
@@ -123,6 +126,7 @@ async function seedPayments() {
             installment: inst.num,
             amount: inst.amount,
             description: inst.desc,
+            estimatedDate: inst.estimatedDate || null,
             status: 'pending',
             paidAmount: 0,
             paidDate: null,
@@ -137,6 +141,7 @@ async function seedPayments() {
             installment: inst.num,
             amount: inst.amount,
             description: inst.desc,
+            estimatedDate: inst.estimatedDate || null,
             status: 'pending',
             paidAmount: 0,
             paidDate: null,
@@ -145,6 +150,20 @@ async function seedPayments() {
         }));
     }
     await Promise.all(ops);
+}
+
+async function migrateEstimatedDates() {
+    const existing = await DB.getPayments();
+    const abkMap = {};
+    ABK_CONTRACT.installments.forEach(i => { abkMap[i.num] = i.estimatedDate; });
+    const ops = [];
+    for (const p of existing) {
+        if (p.contractType === 'ABK' && !p.estimatedDate && abkMap[p.installment]) {
+            p.estimatedDate = abkMap[p.installment];
+            ops.push(DB.put(DB.STORES.payments, p));
+        }
+    }
+    if (ops.length) await Promise.all(ops);
 }
 
 // ======================== TAB NAVIGATION ========================
@@ -314,6 +333,7 @@ async function loadDashboard() {
                 <span class="next-label">Đợt kế tiếp:</span>
                 <span class="next-detail">Đợt ${nextABK.installment} - ${formatVND(nextABK.amount)}</span>
                 <span class="next-desc">${nextABK.description}</span>
+                ${nextABK.estimatedDate ? `<span class="next-est-date">DK: ${formatDate(nextABK.estimatedDate)}</span>` : ''}
             </div>` : '<div class="next-payment done">Hoàn tất thanh toán ABK</div>'}
         </div>
 
@@ -443,12 +463,16 @@ function renderPaymentItem(p) {
         statusText = 'Đã TT';
     }
 
+    const estDateHtml = p.estimatedDate && !isPaid
+        ? `<div class="payment-est-date">DK: ${formatDate(p.estimatedDate)}</div>` : '';
+
     return `
         <div class="payment-item ${statusClass}" onclick="showPaymentModal('${p.id}')">
             <div class="payment-left">
                 <div class="payment-num">Đợt ${p.installment}</div>
                 <div class="payment-desc">${p.description}</div>
                 ${isPaid && p.paidDate ? `<div class="payment-date">${formatDate(p.paidDate)} - ${p.paymentMethod || ''}</div>` : ''}
+                ${estDateHtml}
                 ${p.notes ? `<div class="payment-notes">${p.notes}</div>` : ''}
             </div>
             <div class="payment-right">

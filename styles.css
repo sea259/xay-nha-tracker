@@ -485,6 +485,22 @@ body {
     margin-top: 4px;
 }
 
+.payment-est-date {
+    font-size: 0.7rem;
+    color: #1565C0;
+    margin-top: 3px;
+    font-weight: 500;
+}
+.status-paid .payment-est-date { display: none; }
+
+.next-est-date {
+    display: block;
+    font-size: 0.75rem;
+    color: #1565C0;
+    margin-top: 2px;
+    font-weight: 500;
+}
+
 .payment-notes {
     font-size: 0.7rem;
     color: var(--gray-500);
