@@ -28,12 +28,13 @@ const ABK_CONTRACT = {
 
 const TM_CONTRACT = {
     name: 'TM',
-    fullName: 'Hợp đồng thang máy Fuji Lift',
-    total: 510_000_000,
+    fullName: 'Hợp đồng thang máy Fuji Lift (HĐ + PLHD)',
+    total: 538_000_000,
     installments: [
-        { num: 1, amount: 204_000_000, desc: 'Ký HĐ' },
-        { num: 2, amount: 204_000_000, desc: 'Hàng về + bắt đầu lắp đặt' },
-        { num: 3, amount: 102_000_000, desc: 'Nghiệm thu + kiểm định + bàn giao' },
+        { num: 1, amount: 20_150_000,  desc: 'HĐ 5% — Ký hợp đồng' },
+        { num: 2, amount: 195_050_000, desc: 'Cất nóc — HĐ 35% (141,05tr) + PLHD 40% (54tr)' },
+        { num: 3, amount: 215_200_000, desc: 'Hàng đến — HĐ 40% (161,2tr) + PLHD 40% (54tr)' },
+        { num: 4, amount: 107_600_000, desc: 'Lắp xong + kiểm định — HĐ 20% (80,6tr) + PLHD 20% (27tr)' },
     ]
 };
 

@@ -61,7 +61,7 @@ const INSPECT_PHASES = [
       {text:'Thỏ chống hôi (siphon) mọi phễu thu sàn',detail:'TC28 #14 + HĐ Đ3.',tags:[['t','TC28 #14'],['h','Đ3']]}
     ]},
     {name:'Hố PIT thang máy',items:[
-      {text:'Kích thước hố PIT đúng yêu cầu thang 350KG',detail:'PLHD mục 16: dày 200mm + vách BTCT 200mm, D10@200.',tags:[['c','CRITICAL']],ref:'KC (Mặt cắt thang máy)'},
+      {text:'Kích thước hố PIT đúng yêu cầu Fuji 450KG',detail:'Hố 1520×1520mm phủ bì, lọt lòng 1500×1500mm. Dày 200mm + vách BTCT 200mm, D10@200.',tags:[['c','CRITICAL']],ref:'KC (Mặt cắt thang máy)'},
       {text:'Chống thấm hố PIT',detail:'Ngập nước = hỏng motor. Kiểm tra chống thấm + hố ga bơm.',tags:[['c','CRITICAL']]}
     ]}
   ]},
